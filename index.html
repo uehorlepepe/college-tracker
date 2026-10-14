@@ -3,106 +3,77 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>School List Essay Tracker — Class of 2031</title>
-<meta name="description" content="Track 35 college applications, essays, deadlines and progress. Autosaves locally." />
+<title>Essay Tracker</title>
+<meta name="description" content="Track college applications, essays and deadlines." />
 <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-<div class="wrap" id="app">
-  <header class="top">
+<div class="wrap">
+  <header>
     <div>
-      <h1>🎓 School List <span>Essay Tracker</span></h1>
-      <div class="sub" id="todayLine">loading…</div>
+      <h1>Essay Tracker</h1>
+      <div class="sub" id="todayLine">loading</div>
     </div>
-    <div class="row">
-      <button class="btn" id="themeBtn">☾ Dark / Light</button>
-      <button class="btn" id="exportBtn">⬇ Export JSON</button>
-      <button class="btn" id="csvBtn">⬇ CSV</button>
-      <button class="btn" id="importBtn">⬆ Import</button>
+    <div class="actions">
+      <button class="btn" id="addSchoolBtn">Add school</button>
+      <button class="btn" id="exportBtn">Export</button>
+      <button class="btn" id="importBtn">Import</button>
       <input type="file" id="fileIn" accept="application/json" hidden />
-      <button class="btn danger" id="resetBtn">Reset</button>
+      <button class="btn" id="csvBtn">CSV</button>
+      <button class="btn" id="resetBtn">Reset</button>
     </div>
   </header>
 
-  <div class="grid-stats">
-    <div class="stat"><div class="k">Essays complete</div><div class="v" id="stEssays">0/0</div><div class="s" id="stEssaysSub">0% done</div></div>
-    <div class="stat"><div class="k">Schools submitted</div><div class="v" id="stSchools">0/35</div><div class="s" id="stSchoolsSub">0% applied</div></div>
-    <div class="stat"><div class="k">Due in next 14 days</div><div class="v" id="stUrgent">0</div><div class="s">check urgent list below</div></div>
-    <div class="stat"><div class="k">Days to next deadline</div><div class="v" id="stNext">—</div><div class="s" id="stNextSub">—</div></div>
-  </div>
+  <div class="progress"><span id="progText">0/0 essays</span><span id="progPct">0%</span></div>
+  <div class="track"><i id="progBar"></i></div>
+  <div class="next" id="nextLine"></div>
 
-  <div class="overall">
-    <div class="panel">
-      <div class="row" style="justify-content:space-between"><b>✍️ Overall essay progress</b><b id="essPct">0%</b></div>
-      <div class="bar"><i id="essBar"></i></div>
-      <div class="hint" id="essHint" style="margin-top:8px"></div>
-      <div class="row" style="justify-content:space-between;margin-top:14px"><b>📨 Application progress</b><b id="appPct">0%</b></div>
-      <div class="bar green"><i id="appBar"></i></div>
-    </div>
-    <div class="panel">
-      <b>🎯 Priority queue (sorted by deadline)</b>
-      <div id="queue" style="margin-top:10px;display:flex;flex-direction:column;gap:7px;font-size:13.5px"></div>
-      <div class="common">
-        <div>
-          <label class="hint" for="psState"><b>Common App Personal Statement</b></label>
-          <div class="row" style="margin-top:6px">
-            <select id="psState"><option>Not started</option><option>Drafting</option><option>Draft done</option><option>Final ✓</option></select>
-          </div>
-        </div>
-        <div>
-          <label class="hint"><b>Quick add</b></label>
-          <div class="row" style="margin-top:6px">
-            <button class="btn primary small" id="addSchoolBtn">＋ Add school</button>
-            <button class="btn small" id="addEssayAllBtn">＋ “Why Us” to all RD</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel urgent" id="urgentPanel"><b>⏰ Up next:</b> <span id="urgentText"></span></div>
-
-  <div class="controls panel">
-    <input id="q" placeholder="🔍 Search school or essay…" style="flex:1;min-width:180px" />
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search" />
     <select id="fCat">
       <option value="">All regions</option>
-      <option value="US-RD">🇺🇸 US · Regular Decision</option>
-      <option value="US-EA">⚡ US · Early (ED/EA)</option>
-      <option value="CA-US">☀️ UCs + USC</option>
-      <option value="Canada">🍁 Canada</option>
-      <option value="Intl">🌍 International</option>
+      <option value="US-RD">US — Regular</option>
+      <option value="US-EA">US — Early</option>
+      <option value="CA-US">UC / USC</option>
+      <option value="Canada">Canada</option>
+      <option value="Intl">International</option>
     </select>
     <select id="fStatus">
       <option value="">All statuses</option>
       <option>Not started</option>
       <option>In progress</option>
       <option>Essays done</option>
-      <option>Submitted ✓</option>
+      <option>Submitted</option>
     </select>
     <select id="fSort">
-      <option value="deadline">Sort: deadline ↑</option>
-      <option value="progress">Sort: least progress</option>
-      <option value="name">Sort: A–Z</option>
+      <option value="deadline">Deadline</option>
+      <option value="progress">Least progress</option>
+      <option value="name">A–Z</option>
     </select>
-    <label class="hint"><input type="checkbox" id="hideDone" style="width:auto" /> hide submitted</label>
+    <label class="checkline"><input type="checkbox" id="hideDone" /> hide submitted</label>
   </div>
 
   <div id="schools"></div>
 
-  <footer>Tip: everything autosaves in this browser (localStorage). Export JSON weekly as backup — use it to move progress to your Vercel site. UC PIQs are shared — finishing one helps Berkeley + UCLA. · Class of 2031 💪</footer>
+  <footer>Autosaves in this browser. Export weekly as backup. Double-click an essay to rename it.</footer>
 </div>
 
 <dialog id="dlg">
-  <h3 style="margin:0">＋ Add school</h3>
+  <h3>Add school</h3>
   <label>Name</label><input id="nName" placeholder="e.g. Duke University" />
-  <div class="row">
-    <div style="flex:1"><label>Region</label><select id="nCat"><option value="US-RD">🇺🇸 US · RD</option><option value="US-EA">⚡ US · Early</option><option value="CA-US">☀️ UC/CA</option><option value="Canada">🍁 Canada</option><option value="Intl">🌍 International</option></select></div>
-    <div style="flex:1"><label>Deadline</label><input id="nDate" type="date" value="2027-01-01" /></div>
-  </div>
-  <label>Starter essays (comma separated, optional)</label><input id="nEssays" placeholder="Why Us (250w), Community (300w)" />
-  <div class="row" style="margin-top:14px;justify-content:flex-end">
-    <button class="btn small" id="dlgCancel">Cancel</button>
-    <button class="btn primary small" id="dlgSave">Add school</button>
+  <label>Region</label>
+  <select id="nCat">
+    <option value="US-RD">US — Regular</option>
+    <option value="US-EA">US — Early</option>
+    <option value="CA-US">UC / USC</option>
+    <option value="Canada">Canada</option>
+    <option value="Intl">International</option>
+  </select>
+  <label>Deadline</label><input id="nDate" type="date" value="2027-01-01" />
+  <label>Essays (comma separated)</label><input id="nEssays" placeholder="Why Us (250w), Community (300w)" />
+  <div style="margin-top:16px;text-align:right">
+    <button class="btn" id="dlgCancel">Cancel</button>
+    <button class="btn" id="dlgSave"><strong>Add</strong></button>
   </div>
 </dialog>
 
