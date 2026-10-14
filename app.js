@@ -33,7 +33,14 @@ function buildSeed() {
     ]),
     s("Johns Hopkins University", "US-RD", "2027-01-02", ["Bridge builders — engaging across differences (350w)"]),
     // Early (7)
-    s("Cornell University", "US-EA", "2026-11-01", ["College interest / Why Cornell (650w)"]),
+    s("Cornell University", "US-EA", "2026-11-01", [
+      "Why engineering (200w)",
+      "Why Cornell Engineering (200w)",
+      "What brings you joy (100w)",
+      "Contribution / unique voice (100w)",
+      "Meaningful activity (100w)",
+      "Proudest award / achievement (100w)"
+    ]),
     s("Georgia Tech", "US-EA", "2026-11-02", ["Why Major at GT (300w)", "Community / impact (300w)"]),
     s("University of Michigan", "US-EA", "2026-11-01", ["Why Michigan (550w)", "Community essay (300w)"]),
     s("UIUC", "US-EA", "2026-11-01", ["Why Major + Why UIUC (300w)", "Experience / perspective (300w)"]),
@@ -98,6 +105,23 @@ if (!state || !state.schools) {
     }
   });
   if (added) save();
+  // Fix saved Cornell entry: Engineering requires 2 long + 4 short essays.
+  // Adds anything missing without touching existing ticks; drops the old
+  // generic prompt if it was never started.
+  const cornell = state.schools.find(x => x.name.toLowerCase().includes("cornell"));
+  if (cornell) {
+    const wantCornell = buildSeed().find(x => x.name === "Cornell University").essays.map(e => e.title);
+    const legacy = cornell.essays.find(e => e.title === "College interest / Why Cornell (650w)");
+    if (legacy && !legacy.done) cornell.essays = cornell.essays.filter(e => e !== legacy);
+    let fixed = false;
+    wantCornell.forEach(t => {
+      if (!cornell.essays.some(e => e.title === t)) {
+        cornell.essays.push({ id: uid(), title: t, done: false });
+        fixed = true;
+      }
+    });
+    if (fixed) { autoStatus(cornell); save(); }
+  }
 }
 
 function save() { localStorage.setItem(LS, JSON.stringify(state)); }
