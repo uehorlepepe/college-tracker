@@ -1,6 +1,6 @@
 # College Essay Tracker — Class of 2031
 
-Static website (no build step). 35 schools, deadlines, essay checklists, overall progress bars. Autosaves to `localStorage`.
+Static website (no build step). 34 schools, deadlines, essay checklists, overall progress bars. Autosaves to `localStorage`.
 
 ## Run locally
 

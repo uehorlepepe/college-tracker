@@ -1,4 +1,4 @@
-/* Essay Tracker — 35 schools. Minimal black-and-white accordion UI. */
+/* Essay Tracker — 34 schools. Minimal black-and-white accordion UI. */
 const LS = "essayTrackerV1";
 const today = new Date(); today.setHours(0, 0, 0, 0);
 
@@ -63,9 +63,8 @@ function buildSeed() {
     s("York", "Canada", "2027-01-15", ["OUAC application"]),
     s("UBC", "Canada", "2027-12-01", ["Personal profile (4 x 200w)", "Activities + references"]),
     s("McGill", "Canada", "2027-01-15", ["Minerva app + personal statement (if req'd)"]),
-    // Intl (2)
+    // Intl (1)
     s("NTU (Singapore)", "Intl", "2027-02-01", ["Personal statement + achievements"]),
-    s("TU Delft", "Intl", "2027-04-01", ["Motivation letter + CV upload"]),
   ];
 }
 
@@ -94,6 +93,13 @@ if (!state || !state.schools) {
   state = normalize({ schools: buildSeed(), open: [] });
 } else {
   state = normalize(state);
+  // User removed TU Delft: drop it from saved lists too.
+  const kept = state.schools.filter(x => !x.name.toLowerCase().includes("delft"));
+  if (kept.length !== state.schools.length) {
+    state.schools = kept;
+    state.open = state.open.filter(id => kept.some(x => x.id === id));
+    save();
+  }
   const names = new Set(state.schools.map(x => x.name.toLowerCase()));
   let added = false;
   const fresh = buildSeed();
@@ -345,7 +351,7 @@ $("csvBtn").onclick = () => {
   a.click();
 };
 $("resetBtn").onclick = () => {
-  if (confirm("Reset to the original 35-school list? Your ticks will be lost.")) {
+  if (confirm("Reset to the original 34-school list? Your ticks will be lost.")) {
     localStorage.removeItem(LS);
     state = normalize({ schools: buildSeed(), open: [] });
     render();
