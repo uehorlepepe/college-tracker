@@ -47,10 +47,10 @@ function buildSeed() {
     s("UC Boulder", "US-EA", "2026-11-15", ["Why CU Boulder + major (650w)"]),
     s("Purdue University", "US-EA", "2026-11-01", ["Why Major (250w)", "Why Purdue (250w)", "Community / leadership (250w)"]),
     s("Northeastern", "US-EA", "2026-11-01", ["Why Northeastern + co-op (200w)"]),
-    // UC + USC (3)
+    s("USC", "US-EA", "2026-11-01", ["Why USC + major (250w)", "Describe yourself / puzzle (250c)", "Dornsife / major short (250w)"]),
+    // UC (2)
     s("UC Berkeley", "CA-US", "2026-11-27", ["PIQ 1 — Leadership (350w)", "PIQ 2 — Creativity (350w)", "PIQ 3 — Talent / challenge (350w)", "PIQ 4 — Community (350w) *shared UC*"]),
     s("UCLA", "CA-US", "2026-11-27", ["PIQ 1 — Leadership (350w)", "PIQ 2 — Creativity (350w)", "PIQ 3 — Talent / challenge (350w)", "PIQ 4 — Community (350w) *shared UC*"]),
-    s("USC", "CA-US", "2026-11-01", ["Why USC + major (250w)", "Describe yourself / puzzle (250c)", "Dornsife / major short (250w)"]),
     // Canada (11)
     s("UofT", "Canada", "2027-01-15", ["OUAC application + supplemental (if req'd)"]),
     s("McMaster", "Canada", "2027-01-15", ["Supp app / Kira + essays (if req'd)"]),
@@ -128,6 +128,9 @@ if (!state || !state.schools) {
     });
     if (fixed) { autoStatus(cornell); save(); }
   }
+  // Move USC into the Early group.
+  const usc = state.schools.find(x => x.name.toLowerCase() === "usc");
+  if (usc && usc.cat !== "US-EA") { usc.cat = "US-EA"; save(); }
 }
 
 function save() { localStorage.setItem(LS, JSON.stringify(state)); }
