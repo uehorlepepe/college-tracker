@@ -84,6 +84,12 @@ function normalize(st) {
     if (!Array.isArray(x.essays)) x.essays = [];
   });
   if (!Array.isArray(st.open)) st.open = [];
+  if (!st.ps || typeof st.ps !== "object") {
+    const old = typeof st.ps === "string" ? st.ps : "Not started";
+    st.ps = { title: "Personal Statement (650w)", done: old === "Final ✓" || old === "Final" };
+  }
+  if (typeof st.ps.done !== "boolean") st.ps.done = false;
+  if (typeof st.ps.title !== "string" || !st.ps.title) st.ps.title = "Personal Statement (650w)";
   return st;
 }
 
@@ -146,6 +152,8 @@ function leftText(left, submitted) {
 function totals() {
   let eT = 0, eD = 0, sD = 0;
   state.schools.forEach(x => { x.essays.forEach(e => { eT++; if (e.done) eD++; }); if (x.status === "Submitted") sD++; });
+  eT += 1;
+  if (state.ps && state.ps.done) eD += 1;
   return { eT, eD, sD, sT: state.schools.length };
 }
 
@@ -197,7 +205,30 @@ function render() {
   if (hide) match = match.filter(x => x.status !== "Submitted");
 
   schoolsEl.innerHTML = "";
-  if (!match.length) { schoolsEl.innerHTML = '<div class="empty">No schools match.</div>'; return; }
+  if (!match.length && !(state.ps && (!qv || state.ps.title.toLowerCase().includes(qv)))) {
+    schoolsEl.innerHTML = '<div class="empty">No schools match.</div>';
+    return;
+  }
+
+  if (state.ps && (!qv || state.ps.title.toLowerCase().includes(qv))) {
+    const g = document.createElement("div");
+    g.className = "group";
+    g.textContent = "Personal Statement";
+    schoolsEl.appendChild(g);
+    const row = document.createElement("div");
+    row.className = "essay" + (state.ps.done ? " done" : "");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = !!state.ps.done;
+    cb.setAttribute("aria-label", "Done: personal statement");
+    cb.onchange = () => { state.ps.done = cb.checked; render(); };
+    const t = document.createElement("span");
+    t.textContent = state.ps.title;
+    t.ondblclick = () => { const v = prompt("Edit:", state.ps.title); if (v) { state.ps.title = v; render(); } };
+    row.appendChild(cb);
+    row.appendChild(t);
+    schoolsEl.appendChild(row);
+  }
 
   GROUPS.forEach(([cat, label]) => {
     if (fc && fc !== cat) return;
