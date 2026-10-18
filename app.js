@@ -75,7 +75,7 @@ const GROUPS = [
   ["Canada", "Canada"],
   ["Intl", "International"],
 ];
-const STATUSES = ["Not started", "In progress", "Essays done", "Submitted"];
+const STATUSES = ["Not started", "In progress", "Essays done", "Pending approval", "Submitted"];
 
 function normalize(st) {
   st.schools.forEach(x => {
@@ -154,7 +154,7 @@ const schoolsEl = $("schools");
 
 function prog(x) { return x.essays.length ? Math.round(x.essays.filter(e => e.done).length / x.essays.length * 100) : (x.status === "Submitted" ? 100 : 0); }
 function autoStatus(x) {
-  if (x.status === "Submitted") return;
+  if (x.status === "Submitted" || x.status === "Pending approval") return;
   if (!x.essays.length) return;
   const p = prog(x);
   x.status = p === 100 ? "Essays done" : p > 0 ? "In progress" : "Not started";
@@ -215,9 +215,10 @@ function render() {
 function schoolEl(x) {
   const left = daysLeft(x.deadline);
   const submitted = x.status === "Submitted";
+  const pending = x.status === "Pending approval";
   const done = x.essays.filter(e => e.done).length;
   const wrap = document.createElement("div");
-  wrap.className = "school" + (isOpen(x) ? " open" : "") + (submitted ? " done" : "");
+  wrap.className = "school" + (isOpen(x) ? " open" : "") + (submitted ? " done" : pending ? " pending" : "");
 
   const head = document.createElement("button");
   head.className = "school-head";
