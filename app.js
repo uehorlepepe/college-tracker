@@ -32,7 +32,9 @@ function buildSeed() {
       "Why major at Columbia (150w)"
     ]),
     s("Johns Hopkins University", "US-RD", "2027-01-02", ["Bridge builders — engaging across differences (350w)"]),
-    // Early (7)
+    s("USC", "US-RD", "2027-01-15", ["Why USC + major (250w)", "Describe yourself / puzzle (250c)", "Dornsife / major short (250w)"]),
+    s("University of Michigan", "US-RD", "2027-02-01", ["Why Michigan (550w)", "Community essay (300w)"]),
+    // Early (6)
     s("Cornell University", "US-EA", "2026-11-01", [
       "Why engineering (200w)",
       "Why Cornell Engineering (200w)",
@@ -42,12 +44,10 @@ function buildSeed() {
       "Proudest award / achievement (100w)"
     ]),
     s("Georgia Tech", "US-EA", "2026-11-02", ["Why Major at GT (300w)", "Community / impact (300w)"]),
-    s("University of Michigan", "US-EA", "2026-11-01", ["Why Michigan (550w)", "Community essay (300w)"]),
     s("UIUC", "US-EA", "2026-11-01", ["Why Major + Why UIUC (300w)", "Experience / perspective (300w)"]),
     s("UC Boulder", "US-EA", "2026-11-15", ["Why CU Boulder + major (650w)"]),
     s("Purdue University", "US-EA", "2026-11-01", ["Why Major (250w)", "Why Purdue (250w)", "Community / leadership (250w)"]),
     s("Northeastern", "US-EA", "2026-11-01", ["Why Northeastern + co-op (200w)"]),
-    s("USC", "US-EA", "2026-11-01", ["Why USC + major (250w)", "Describe yourself / puzzle (250c)", "Dornsife / major short (250w)"]),
     // UC (2)
     s("UC Berkeley", "CA-US", "2026-11-27", ["PIQ 1 — Leadership (350w)", "PIQ 2 — Creativity (350w)", "PIQ 3 — Talent / challenge (350w)", "PIQ 4 — Community (350w) *shared UC*"]),
     s("UCLA", "CA-US", "2026-11-27", ["PIQ 1 — Leadership (350w)", "PIQ 2 — Creativity (350w)", "PIQ 3 — Talent / challenge (350w)", "PIQ 4 — Community (350w) *shared UC*"]),
@@ -71,7 +71,7 @@ function buildSeed() {
 const GROUPS = [
   ["US-EA", "Early"],
   ["US-RD", "Regular Decision"],
-  ["CA-US", "UC / USC"],
+  ["CA-US", "UCs"],
   ["Canada", "Canada"],
   ["Intl", "International"],
 ];
@@ -134,9 +134,21 @@ if (!state || !state.schools) {
     });
     if (fixed) { autoStatus(cornell); save(); }
   }
-  // Move USC into the Early group.
+  // Move USC and Michigan into Regular Decision group.
   const usc = state.schools.find(x => x.name.toLowerCase() === "usc");
-  if (usc && usc.cat !== "US-EA") { usc.cat = "US-EA"; save(); }
+  if (usc) {
+    let changed = false;
+    if (usc.cat !== "US-RD") { usc.cat = "US-RD"; changed = true; }
+    if (usc.deadline === "2026-11-01") { usc.deadline = "2027-01-15"; changed = true; }
+    if (changed) save();
+  }
+  const mich = state.schools.find(x => x.name.toLowerCase().includes("michigan"));
+  if (mich) {
+    let changed = false;
+    if (mich.cat !== "US-RD") { mich.cat = "US-RD"; changed = true; }
+    if (mich.deadline === "2026-11-01") { mich.deadline = "2027-02-01"; changed = true; }
+    if (changed) save();
+  }
 }
 
 function save() { localStorage.setItem(LS, JSON.stringify(state)); }
