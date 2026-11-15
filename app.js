@@ -75,11 +75,12 @@ const GROUPS = [
   ["Canada", "Canada"],
   ["Intl", "International"],
 ];
-const STATUSES = ["Not started", "In progress", "Essays done", "Pending approval", "Submitted"];
+const STATUSES = ["Not started", "In progress", "Essays done", "Pending approval", "Submitted", "Accepted"];
 
 function normalize(st) {
   st.schools.forEach(x => {
     if (x.status === "Submitted ✓") x.status = "Submitted";
+    if (x.status === "Accepted ✓") x.status = "Accepted";
     if (!STATUSES.includes(x.status)) x.status = "Not started";
     if (!Array.isArray(x.essays)) x.essays = [];
   });
@@ -163,7 +164,7 @@ function leftText(left, submitted) {
 
 function totals() {
   let eT = 0, eD = 0, sD = 0;
-  state.schools.forEach(x => { x.essays.forEach(e => { eT++; if (e.done) eD++; }); if (x.status === "Submitted") sD++; });
+  state.schools.forEach(x => { x.essays.forEach(e => { eT++; if (e.done) eD++; }); if (isSubmitted(x)) sD++; });
   eT += 1;
   if (state.ps && state.ps.done) eD += 1;
   return { eT, eD, sD, sT: state.schools.length };
@@ -172,9 +173,10 @@ function totals() {
 const $ = id => document.getElementById(id);
 const schoolsEl = $("schools");
 
-function prog(x) { return x.essays.length ? Math.round(x.essays.filter(e => e.done).length / x.essays.length * 100) : (x.status === "Submitted" ? 100 : 0); }
+function isSubmitted(x) { return x.status === "Submitted" || x.status === "Accepted"; }
+function prog(x) { return x.essays.length ? Math.round(x.essays.filter(e => e.done).length / x.essays.length * 100) : (isSubmitted(x) ? 100 : 0); }
 function autoStatus(x) {
-  if (x.status === "Submitted" || x.status === "Pending approval") return;
+  if (isSubmitted(x) || x.status === "Pending approval") return;
   if (!x.essays.length) return;
   const p = prog(x);
   x.status = p === 100 ? "Essays done" : p > 0 ? "In progress" : "Not started";
@@ -199,7 +201,7 @@ function render() {
     " · " + sT + " schools";
 
   const pending = state.schools
-    .filter(x => x.status !== "Submitted")
+    .filter(x => !isSubmitted(x))
     .map(x => ({ ref: x, left: daysLeft(x.deadline) }))
     .sort((a, b) => a.left - b.left);
   $("nextLine").innerHTML = pending.length
@@ -214,7 +216,7 @@ function render() {
   if (qv) match = match.filter(x => x.name.toLowerCase().includes(qv) || x.essays.some(e => e.title.toLowerCase().includes(qv)));
   if (fc) match = match.filter(x => x.cat === fc);
   if (fs) match = match.filter(x => x.status === fs);
-  if (hide) match = match.filter(x => x.status !== "Submitted");
+  if (hide) match = match.filter(x => !isSubmitted(x));
 
   schoolsEl.innerHTML = "";
   if (!match.length && !(state.ps && (!qv || state.ps.title.toLowerCase().includes(qv)))) {
@@ -258,17 +260,18 @@ function render() {
 function schoolEl(x) {
   const left = daysLeft(x.deadline);
   const submitted = x.status === "Submitted";
+  const accepted = x.status === "Accepted";
   const pending = x.status === "Pending approval";
   const done = x.essays.filter(e => e.done).length;
   const wrap = document.createElement("div");
-  wrap.className = "school" + (isOpen(x) ? " open" : "") + (submitted ? " done" : pending ? " pending" : "");
+  wrap.className = "school" + (isOpen(x) ? " open" : "") + (submitted ? " done" : accepted ? " accepted" : pending ? " pending" : "");
 
   const head = document.createElement("button");
   head.className = "school-head";
   head.setAttribute("aria-expanded", isOpen(x) ? "true" : "false");
   const meta = document.createElement("span");
-  meta.className = "school-meta" + (!submitted && left < 0 ? " late" : "");
-  meta.textContent = fmt(x.deadline) + " · " + done + "/" + x.essays.length + " · " + leftText(left, submitted);
+  meta.className = "school-meta" + (!isSubmitted(x) && left < 0 ? " late" : "");
+  meta.textContent = fmt(x.deadline) + " · " + done + "/" + x.essays.length + " · " + (accepted ? "accepted 🎉" : leftText(left, submitted));
   head.innerHTML = '<span class="chev">›</span>';
   const nm = document.createElement("span");
   nm.className = "school-name";
@@ -346,7 +349,8 @@ function schoolEl(x) {
   });
   st.onchange = () => {
     x.status = st.value;
-    if (x.status === "Submitted") x.essays.forEach(e => { e.done = true; });
+    if (isSubmitted(x)) x.essays.forEach(e => { e.done = true; });
+    if (x.status === "Accepted") fireConfetti();
     render();
   };
   const sub = document.createElement("button");
@@ -367,7 +371,80 @@ function schoolEl(x) {
   return wrap;
 }
 
+let confettiRAF = 0;
+function fireConfetti(count = 160) {
+  let cv = document.getElementById("confettiLayer");
+  if (!cv) {
+    cv = document.createElement("canvas");
+    cv.id = "confettiLayer";
+    cv.setAttribute("aria-hidden", "true");
+    document.body.appendChild(cv);
+  }
+  const ctx = cv.getContext("2d");
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = window.innerWidth, H = window.innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const colors = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#00c7be", "#007aff", "#af52de", "#ff2d55"];
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    parts.push({
+      x: W * (0.15 + Math.random() * 0.7),
+      y: -H * 0.12 - Math.random() * H * 0.25,
+      vx: (Math.random() - 0.5) * 7,
+      vy: 2 + Math.random() * 4,
+      w: 6 + Math.random() * 6,
+      h: 8 + Math.random() * 10,
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.3,
+      color: colors[(Math.random() * colors.length) | 0],
+      shape: Math.random() < 0.18 ? "circle" : "rect",
+      sway: Math.random() * Math.PI * 2,
+      swaySpeed: 0.03 + Math.random() * 0.05
+    });
+  }
+
+  const start = performance.now();
+  cancelAnimationFrame(confettiRAF);
+  function draw(now) {
+    ctx.clearRect(0, 0, W, H);
+    let alive = 0;
+    parts.forEach(p => {
+      p.vy += 0.12;
+      p.vx *= 0.995;
+      p.sway += p.swaySpeed;
+      p.x += p.vx + Math.sin(p.sway) * 1.4;
+      p.y += p.vy;
+      p.rot += p.vr;
+      if (p.y < H + 40) alive++;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(0, Math.min(1, (H + 40 - p.y) / (H * 0.3)));
+      ctx.fillStyle = p.color;
+      if (p.shape === "circle") {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      }
+      ctx.restore();
+    });
+    if (alive && (now - start) < 12000) {
+      confettiRAF = requestAnimationFrame(draw);
+    } else {
+      ctx.clearRect(0, 0, W, H);
+      cv.remove();
+    }
+  }
+  confettiRAF = requestAnimationFrame(draw);
+}
+
 ["q", "fCat", "fStatus", "fSort", "hideDone"].forEach(id => $(id).addEventListener("input", render));
+$("confettiBtn").onclick = () => fireConfetti();
 $("exportBtn").onclick = () => {
   const b = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
