@@ -6,6 +6,7 @@ function s(name, cat, deadline, essays) {
   return {
     id: Math.random().toString(36).slice(2, 9), name, cat, deadline,
     status: "Not started",
+    offerDate: "",
     essays: essays.map(t => ({ id: Math.random().toString(36).slice(2, 9), title: t, done: false }))
   };
 }
@@ -75,13 +76,16 @@ const GROUPS = [
   ["Canada", "Canada"],
   ["Intl", "International"],
 ];
-const STATUSES = ["Not started", "In progress", "Essays done", "Pending approval", "Submitted", "Accepted"];
+const STATUSES = ["Not started", "In progress", "Essays done", "Pending approval", "Submitted", "Accepted", "Waitlisted", "Deferred", "Rejected"];
+const DECISIONS = ["Accepted", "Waitlisted", "Deferred", "Rejected"];
+const OUTCOME_TEXT = { Accepted: "accepted 🎉", Waitlisted: "waitlisted", Deferred: "deferred", Rejected: "rejected" };
 
 function normalize(st) {
   st.schools.forEach(x => {
     if (x.status === "Submitted ✓") x.status = "Submitted";
     if (x.status === "Accepted ✓") x.status = "Accepted";
     if (!STATUSES.includes(x.status)) x.status = "Not started";
+    if (typeof x.offerDate !== "string") x.offerDate = "";
     if (!Array.isArray(x.essays)) x.essays = [];
   });
   if (!Array.isArray(st.open)) st.open = [];
@@ -173,7 +177,7 @@ function totals() {
 const $ = id => document.getElementById(id);
 const schoolsEl = $("schools");
 
-function isSubmitted(x) { return x.status === "Submitted" || x.status === "Accepted"; }
+function isSubmitted(x) { return x.status === "Submitted" || DECISIONS.includes(x.status); }
 function prog(x) { return x.essays.length ? Math.round(x.essays.filter(e => e.done).length / x.essays.length * 100) : (isSubmitted(x) ? 100 : 0); }
 function autoStatus(x) {
   if (isSubmitted(x) || x.status === "Pending approval") return;
@@ -260,18 +264,18 @@ function render() {
 function schoolEl(x) {
   const left = daysLeft(x.deadline);
   const submitted = x.status === "Submitted";
-  const accepted = x.status === "Accepted";
   const pending = x.status === "Pending approval";
+  const outcomeCls = { Accepted: " accepted", Waitlisted: " waitlisted", Deferred: " deferred", Rejected: " rejected" }[x.status] || "";
   const done = x.essays.filter(e => e.done).length;
   const wrap = document.createElement("div");
-  wrap.className = "school" + (isOpen(x) ? " open" : "") + (submitted ? " done" : accepted ? " accepted" : pending ? " pending" : "");
+  wrap.className = "school" + (isOpen(x) ? " open" : "") + (submitted ? " done" : pending ? " pending" : outcomeCls);
 
   const head = document.createElement("button");
   head.className = "school-head";
   head.setAttribute("aria-expanded", isOpen(x) ? "true" : "false");
   const meta = document.createElement("span");
   meta.className = "school-meta" + (!isSubmitted(x) && left < 0 ? " late" : "");
-  meta.textContent = fmt(x.deadline) + " · " + done + "/" + x.essays.length + " · " + (accepted ? "accepted 🎉" : leftText(left, submitted));
+  meta.textContent = fmt(x.deadline) + " · " + done + "/" + x.essays.length + " · " + (OUTCOME_TEXT[x.status] || leftText(left, submitted)) + (x.offerDate ? " · offer " + fmt(x.offerDate) : "");
   head.innerHTML = '<span class="chev">›</span>';
   const nm = document.createElement("span");
   nm.className = "school-name";
@@ -331,6 +335,25 @@ function schoolEl(x) {
   addRow.appendChild(nin);
   addRow.appendChild(addBtn);
   body.appendChild(addRow);
+
+  const offerRow = document.createElement("div");
+  offerRow.className = "offerrow";
+  const offerLbl = document.createElement("span");
+  offerLbl.textContent = "Offer received";
+  const offer = document.createElement("input");
+  offer.type = "date";
+  offer.value = x.offerDate || "";
+  offer.title = "Date you received an offer";
+  offer.onchange = () => { x.offerDate = offer.value || ""; render(); };
+  const offerClear = document.createElement("button");
+  offerClear.className = "link";
+  offerClear.textContent = "Clear";
+  offerClear.title = "Clear offer date";
+  offerClear.onclick = () => { x.offerDate = ""; render(); };
+  offerRow.appendChild(offerLbl);
+  offerRow.appendChild(offer);
+  offerRow.appendChild(offerClear);
+  body.appendChild(offerRow);
 
   const foot = document.createElement("div");
   foot.className = "school-foot";
@@ -466,8 +489,8 @@ $("fileIn").onchange = () => {
   r.readAsText(f);
 };
 $("csvBtn").onclick = () => {
-  const rows = [["School", "Region", "Deadline", "Status", "Essays total", "Essays done", "Progress %"]];
-  state.schools.forEach(x => rows.push([x.name, x.cat, x.deadline, x.status, x.essays.length, x.essays.filter(e => e.done).length, prog(x)]));
+  const rows = [["School", "Region", "Deadline", "Status", "Offer received", "Essays total", "Essays done", "Progress %"]];
+  state.schools.forEach(x => rows.push([x.name, x.cat, x.deadline, x.status, x.offerDate || "", x.essays.length, x.essays.filter(e => e.done).length, prog(x)]));
   const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -487,7 +510,7 @@ $("dlgSave").onclick = () => {
   const n = $("nName").value.trim();
   if (!n) { alert("Give the school a name"); return; }
   const es = $("nEssays").value.split(",").map(st => st.trim()).filter(Boolean);
-  const added = { id: uid(), name: n, cat: $("nCat").value, deadline: $("nDate").value || "2027-01-01", status: "Not started", essays: es.map(t => ({ id: uid(), title: t, done: false })) };
+  const added = { id: uid(), name: n, cat: $("nCat").value, deadline: $("nDate").value || "2027-01-01", status: "Not started", offerDate: "", essays: es.map(t => ({ id: uid(), title: t, done: false })) };
   state.schools.push(added);
   state.open = [...state.open, added.id];
   $("nName").value = "";

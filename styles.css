@@ -28,8 +28,11 @@ select{cursor:pointer}
 .school.open .chev{transform:rotate(90deg)}
 .school-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .school.done .school-name{text-decoration:line-through;text-decoration-color:#000;color:#86868b}
-.school.accepted .school-name{font-weight:600}
-.school.accepted .school-meta{color:#000;font-weight:600}
+.school.accepted .school-name{font-weight:700;color:#137333}
+.school.accepted .school-meta,.school.accepted .chev{color:#137333}
+.school.waitlisted .school-name{font-weight:600;color:#8a5a00}
+.school.deferred .school-name{font-weight:600;color:#6e6e73}
+.school.rejected .school-name{color:#a33;text-decoration:line-through;text-decoration-color:#a33}
 .school.pending .school-name{text-decoration:line-through;text-decoration-color:#2563eb;color:#86868b}
 .school-meta{flex:none;font-size:12.5px;color:#86868b;white-space:nowrap;letter-spacing:-.006em;font-variant-numeric:tabular-nums}
 .school-meta.late{color:#000;font-weight:700}
@@ -43,6 +46,9 @@ select{cursor:pointer}
 .essay .x:hover{color:#000}
 .addrow{display:flex;gap:8px;margin-top:8px}
 .addrow input{flex:1;min-width:0}
+.offerrow{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#666}
+.offerrow input[type="date"]{font-size:12px}
+.offerrow .link{margin-left:auto}
 .school-foot{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .school-foot input[type="date"]{font-size:12px}
 .school-foot select{font-size:12px}
