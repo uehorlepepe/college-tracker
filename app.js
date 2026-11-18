@@ -287,6 +287,13 @@ function schoolEl(x) {
   nm.className = "school-name";
   nm.textContent = x.name;
   head.appendChild(nm);
+  if (x.major) {
+    const mj = document.createElement("span");
+    mj.className = "school-major";
+    mj.textContent = x.major;
+    mj.title = "Major: " + x.major;
+    head.appendChild(mj);
+  }
   head.appendChild(meta);
   head.onclick = () => { toggle(x); wrap.classList.toggle("open"); head.setAttribute("aria-expanded", isOpen(x) ? "true" : "false"); };
   wrap.appendChild(head);
@@ -545,8 +552,8 @@ $("fileIn").onchange = () => {
   r.readAsText(f);
 };
 $("csvBtn").onclick = () => {
-  const rows = [["School", "Region", "Deadline", "Status", "Offer received", "Essays total", "Essays done", "Progress %"]];
-  state.schools.forEach(x => rows.push([x.name, x.cat, x.deadline, x.status, x.offerDate || "", x.essays.length, x.essays.filter(e => e.done).length, prog(x)]));
+  const rows = [["School", "Region", "Deadline", "Status", "Offer received", "Major", "Co-op", "Honours", "Essays total", "Essays done", "Progress %"]];
+  state.schools.forEach(x => rows.push([x.name, x.cat, x.deadline, x.status, x.offerDate || "", x.major || "", x.coop || "", x.honours || "", x.essays.length, x.essays.filter(e => e.done).length, prog(x)]));
   const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
