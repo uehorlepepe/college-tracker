@@ -61,7 +61,7 @@ function buildSeed() {
     s("Waterloo", "Canada", "2027-01-15", ["AIF — experiences + reasons (900c)", "Program essays (x2)"]),
     s("Queens", "Canada", "2027-01-15", ["PSE — experiences + Why Queens"]),
     s("Carleton", "Canada", "2027-01-15", ["OUAC + scholarship essays"]),
-    s("OTU (Ontario Tech)", "Canada", "2027-01-15", ["OUAC application"]),
+    s("OTU", "Canada", "2027-01-15", ["OUAC application"]),
     s("TMU", "Canada", "2027-01-15", ["OUAC + program supp (if req'd)"]),
     s("Western", "Canada", "2027-01-15", ["OUAC + supp (Ivey AEO essays x3)"]),
     s("York", "Canada", "2027-01-15", ["OUAC application"]),
@@ -160,6 +160,9 @@ if (!state || !state.schools) {
     if (mich.deadline === "2026-11-01") { mich.deadline = "2027-02-01"; changed = true; }
     if (changed) save();
   }
+  // Drop the old "(Ontario Tech)" suffix from saved lists.
+  const otu = state.schools.find(x => x.name === "OTU (Ontario Tech)");
+  if (otu) { otu.name = "OTU"; save(); }
 }
 
 function save() { localStorage.setItem(LS, JSON.stringify(state)); }
@@ -287,14 +290,35 @@ function schoolEl(x) {
   nm.className = "school-name";
   nm.textContent = x.name;
   head.appendChild(nm);
-  if (x.major) {
-    const mj = document.createElement("span");
-    mj.className = "school-major";
-    mj.textContent = x.major;
-    mj.title = "Major: " + x.major;
-    head.appendChild(mj);
-  }
+  const majorSlot = document.createElement("span");
+  majorSlot.className = "school-major-slot";
+  head.appendChild(majorSlot);
   head.appendChild(meta);
+  const tagsSlot = document.createElement("span");
+  tagsSlot.className = "school-tags";
+  head.appendChild(tagsSlot);
+  // Keeps the collapsed row in step with edits made in the panel, without a
+  // full re-render (which would steal focus mid-typing).
+  const syncHead = () => {
+    majorSlot.textContent = "";
+    if (x.major) {
+      const mj = document.createElement("span");
+      mj.className = "school-major";
+      mj.textContent = x.major;
+      mj.title = "Major: " + x.major;
+      majorSlot.appendChild(mj);
+    }
+    tagsSlot.textContent = "";
+    [["coop", "Co-op", "No co-op"], ["honours", "Honours", "No honours"]].forEach(([key, yes, no]) => {
+      if (!x[key]) return;
+      const on = x[key] === "Yes";
+      const tag = document.createElement("span");
+      tag.className = "school-tag " + (on ? "on" : "off");
+      tag.textContent = on ? yes : no;
+      tagsSlot.appendChild(tag);
+    });
+  };
+  syncHead();
   head.onclick = () => { toggle(x); wrap.classList.toggle("open"); head.setAttribute("aria-expanded", isOpen(x) ? "true" : "false"); };
   wrap.appendChild(head);
 
@@ -358,7 +382,7 @@ function schoolEl(x) {
   major.placeholder = "e.g. Computer Science";
   major.value = x.major || "";
   major.setAttribute("aria-label", "Major for " + x.name);
-  major.onchange = () => { x.major = major.value.trim(); save(); };
+  major.oninput = () => { x.major = major.value.trim(); syncHead(); save(); };
   majorLbl.appendChild(major);
   detailRow.appendChild(majorLbl);
   [["coop", "Co-op"], ["honours", "Honours"]].forEach(([key, label]) => {
@@ -373,7 +397,7 @@ function schoolEl(x) {
       if ((x[key] || "") === v) op.selected = true;
       sel.appendChild(op);
     });
-    sel.onchange = () => { x[key] = sel.value; save(); };
+    sel.onchange = () => { x[key] = sel.value; syncHead(); save(); };
     lbl.appendChild(sel);
     detailRow.appendChild(lbl);
   });
