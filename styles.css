@@ -46,6 +46,10 @@ select{cursor:pointer}
 .essay .x:hover{color:#000}
 .addrow{display:flex;gap:8px;margin-top:8px}
 .addrow input{flex:1;min-width:0}
+.detailrow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-top:12px;font-size:12px;color:#666}
+.detailrow label{display:flex;align-items:center;gap:6px;font-size:12px;color:#666;white-space:nowrap}
+.detailrow input[type="text"]{width:150px;font-size:12px}
+.detailrow select{font-size:12px}
 .offerrow{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#666}
 .offerrow input[type="date"]{font-size:12px}
 .offerrow .link{margin-left:auto}

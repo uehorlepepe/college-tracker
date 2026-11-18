@@ -7,6 +7,9 @@ function s(name, cat, deadline, essays) {
     id: Math.random().toString(36).slice(2, 9), name, cat, deadline,
     status: "Not started",
     offerDate: "",
+    major: "",
+    coop: "",
+    honours: "",
     essays: essays.map(t => ({ id: Math.random().toString(36).slice(2, 9), title: t, done: false }))
   };
 }
@@ -86,6 +89,9 @@ function normalize(st) {
     if (x.status === "Accepted ✓") x.status = "Accepted";
     if (!STATUSES.includes(x.status)) x.status = "Not started";
     if (typeof x.offerDate !== "string") x.offerDate = "";
+    if (typeof x.major !== "string") x.major = "";
+    if (x.coop !== "Yes" && x.coop !== "No") x.coop = "";
+    if (x.honours !== "Yes" && x.honours !== "No") x.honours = "";
     if (!Array.isArray(x.essays)) x.essays = [];
   });
   if (!Array.isArray(st.open)) st.open = [];
@@ -336,6 +342,36 @@ function schoolEl(x) {
   addRow.appendChild(addBtn);
   body.appendChild(addRow);
 
+  const detailRow = document.createElement("div");
+  detailRow.className = "detailrow";
+  const majorLbl = document.createElement("label");
+  majorLbl.textContent = "Major";
+  const major = document.createElement("input");
+  major.type = "text";
+  major.placeholder = "e.g. Computer Science";
+  major.value = x.major || "";
+  major.setAttribute("aria-label", "Major for " + x.name);
+  major.onchange = () => { x.major = major.value.trim(); save(); };
+  majorLbl.appendChild(major);
+  detailRow.appendChild(majorLbl);
+  [["coop", "Co-op"], ["honours", "Honours"]].forEach(([key, label]) => {
+    const lbl = document.createElement("label");
+    lbl.textContent = label;
+    const sel = document.createElement("select");
+    sel.setAttribute("aria-label", label + " for " + x.name);
+    ["", "Yes", "No"].forEach(v => {
+      const op = document.createElement("option");
+      op.value = v;
+      op.textContent = v || "—";
+      if ((x[key] || "") === v) op.selected = true;
+      sel.appendChild(op);
+    });
+    sel.onchange = () => { x[key] = sel.value; save(); };
+    lbl.appendChild(sel);
+    detailRow.appendChild(lbl);
+  });
+  body.appendChild(detailRow);
+
   const offerRow = document.createElement("div");
   offerRow.className = "offerrow";
   const offerLbl = document.createElement("span");
@@ -394,26 +430,81 @@ function schoolEl(x) {
   return wrap;
 }
 
+/* Confetti: one persistent canvas and one shared particle pool, so every click
+   adds a fresh burst on top of whatever is still falling instead of resetting. */
+let confettiParts = [];
 let confettiRAF = 0;
-function fireConfetti(count = 160) {
-  let cv = document.getElementById("confettiLayer");
-  if (!cv) {
-    cv = document.createElement("canvas");
-    cv.id = "confettiLayer";
-    cv.setAttribute("aria-hidden", "true");
-    document.body.appendChild(cv);
+let confettiCv = null;
+let confettiCtx = null;
+let confettiW = 0, confettiH = 0, confettiDpr = 0;
+const CONFETTI_COLORS = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#00c7be", "#007aff", "#af52de", "#ff2d55"];
+
+function confettiSetup() {
+  if (!confettiCv || !confettiCv.isConnected) {
+    confettiCv = document.getElementById("confettiLayer");
+    if (!confettiCv) {
+      confettiCv = document.createElement("canvas");
+      confettiCv.id = "confettiLayer";
+      confettiCv.setAttribute("aria-hidden", "true");
+      document.body.appendChild(confettiCv);
+    }
+    confettiCtx = confettiCv.getContext("2d");
+    confettiW = confettiH = confettiDpr = 0; // force resize + transform reset
   }
-  const ctx = cv.getContext("2d");
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const W = window.innerWidth, H = window.innerHeight;
-  cv.width = W * dpr; cv.height = H * dpr;
-  cv.style.width = W + "px"; cv.style.height = H + "px";
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (W !== confettiW || H !== confettiH || dpr !== confettiDpr) {
+    confettiW = W; confettiH = H; confettiDpr = dpr;
+    confettiCv.width = W * dpr;
+    confettiCv.height = H * dpr;
+    confettiCv.style.width = W + "px";
+    confettiCv.style.height = H + "px";
+    confettiCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+}
 
-  const colors = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#00c7be", "#007aff", "#af52de", "#ff2d55"];
-  const parts = [];
+function confettiLoop() {
+  const ctx = confettiCtx, W = confettiW, H = confettiH;
+  ctx.clearRect(0, 0, W, H);
+  for (let i = confettiParts.length - 1; i >= 0; i--) {
+    const p = confettiParts[i];
+    p.vy += 0.12;
+    p.vx *= 0.995;
+    p.sway += p.swaySpeed;
+    p.x += p.vx + Math.sin(p.sway) * 1.4;
+    p.y += p.vy;
+    p.rot += p.vr;
+    if (p.y > H + 60) { confettiParts.splice(i, 1); continue; }
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.globalAlpha = Math.max(0, Math.min(1, (H + 40 - p.y) / (H * 0.3)));
+    ctx.fillStyle = p.color;
+    if (p.shape === "circle") {
+      ctx.beginPath();
+      ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    }
+    ctx.restore();
+  }
+  if (confettiParts.length) {
+    confettiRAF = requestAnimationFrame(confettiLoop);
+  } else {
+    confettiRAF = 0;
+    ctx.clearRect(0, 0, W, H);
+    if (confettiCv) confettiCv.remove();
+    confettiCv = confettiCtx = null;
+    confettiW = confettiH = confettiDpr = 0;
+  }
+}
+
+function fireConfetti(count = 160) {
+  confettiSetup();
+  const W = confettiW, H = confettiH;
   for (let i = 0; i < count; i++) {
-    parts.push({
+    confettiParts.push({
       x: W * (0.15 + Math.random() * 0.7),
       y: -H * 0.12 - Math.random() * H * 0.25,
       vx: (Math.random() - 0.5) * 7,
@@ -422,48 +513,13 @@ function fireConfetti(count = 160) {
       h: 8 + Math.random() * 10,
       rot: Math.random() * Math.PI * 2,
       vr: (Math.random() - 0.5) * 0.3,
-      color: colors[(Math.random() * colors.length) | 0],
+      color: CONFETTI_COLORS[(Math.random() * CONFETTI_COLORS.length) | 0],
       shape: Math.random() < 0.18 ? "circle" : "rect",
       sway: Math.random() * Math.PI * 2,
       swaySpeed: 0.03 + Math.random() * 0.05
     });
   }
-
-  const start = performance.now();
-  cancelAnimationFrame(confettiRAF);
-  function draw(now) {
-    ctx.clearRect(0, 0, W, H);
-    let alive = 0;
-    parts.forEach(p => {
-      p.vy += 0.12;
-      p.vx *= 0.995;
-      p.sway += p.swaySpeed;
-      p.x += p.vx + Math.sin(p.sway) * 1.4;
-      p.y += p.vy;
-      p.rot += p.vr;
-      if (p.y < H + 40) alive++;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      ctx.globalAlpha = Math.max(0, Math.min(1, (H + 40 - p.y) / (H * 0.3)));
-      ctx.fillStyle = p.color;
-      if (p.shape === "circle") {
-        ctx.beginPath();
-        ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      }
-      ctx.restore();
-    });
-    if (alive && (now - start) < 12000) {
-      confettiRAF = requestAnimationFrame(draw);
-    } else {
-      ctx.clearRect(0, 0, W, H);
-      cv.remove();
-    }
-  }
-  confettiRAF = requestAnimationFrame(draw);
+  if (!confettiRAF) confettiRAF = requestAnimationFrame(confettiLoop);
 }
 
 ["q", "fCat", "fStatus", "fSort", "hideDone"].forEach(id => $(id).addEventListener("input", render));
@@ -510,7 +566,7 @@ $("dlgSave").onclick = () => {
   const n = $("nName").value.trim();
   if (!n) { alert("Give the school a name"); return; }
   const es = $("nEssays").value.split(",").map(st => st.trim()).filter(Boolean);
-  const added = { id: uid(), name: n, cat: $("nCat").value, deadline: $("nDate").value || "2027-01-01", status: "Not started", offerDate: "", essays: es.map(t => ({ id: uid(), title: t, done: false })) };
+  const added = { id: uid(), name: n, cat: $("nCat").value, deadline: $("nDate").value || "2027-01-01", status: "Not started", offerDate: "", major: "", coop: "", honours: "", essays: es.map(t => ({ id: uid(), title: t, done: false })) };
   state.schools.push(added);
   state.open = [...state.open, added.id];
   $("nName").value = "";
