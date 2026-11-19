@@ -197,12 +197,13 @@ function addNewSeedSchools(st) {
 function applyDeadlines(st) {
   const override = "2026-12-18";
   const exempt = ["UT Austin"];
-  if (st.deadlinePlan === 2) return false;
+  const nov30 = ["UofT", "Waterloo", "McMaster"];
+  if (st.deadlinePlan === 3) return false;
   st.schools.forEach(x => {
     if (x.cat === "CA-US" || exempt.includes(x.name)) return;
-    x.deadline = override;
+    x.deadline = nov30.includes(x.name) ? "2026-11-30" : override;
   });
-  st.deadlinePlan = 2;
+  st.deadlinePlan = 3;
   return true;
 }
 
