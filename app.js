@@ -102,6 +102,7 @@ function normalize(st) {
     if (!Array.isArray(x.essays)) x.essays = [];
   });
   if (!Array.isArray(st.open)) st.open = [];
+  if (typeof st.deadlinePlan !== "number") st.deadlinePlan = 0;
   // Names you deleted, so a seed school you remove is not added back on reload.
   if (!Array.isArray(st.removed)) st.removed = [];
   st.removed = st.removed
@@ -121,8 +122,10 @@ let state = null;
 try { state = JSON.parse(localStorage.getItem(LS)) || null; } catch (e) { state = null; }
 if (!state || !state.schools) {
   state = normalize({ schools: buildSeed(), open: [] });
+  applyDeadlines(state);
 } else {
   state = normalize(state);
+  if (applyDeadlines(state)) save();
   // User removed TU Delft and Caltech: drop them from saved lists too.
   if (dropRemovedSchools(state)) save();
   const names = new Set(state.schools.map(x => x.name.toLowerCase()));
@@ -186,6 +189,21 @@ function addNewSeedSchools(st) {
     if (f) { st.schools.push(f); added = true; }
   });
   return added;
+}
+
+// Your plan: every school is due Dec 18, except UT Austin (Dec 1) and the UCs
+// (left as they are). Runs once per saved list; deadlinePlan records that.
+// Kept inside the function: this runs during load, before later consts exist.
+function applyDeadlines(st) {
+  const override = "2026-12-18";
+  const exempt = ["UT Austin"];
+  if (st.deadlinePlan === 2) return false;
+  st.schools.forEach(x => {
+    if (x.cat === "CA-US" || exempt.includes(x.name)) return;
+    x.deadline = override;
+  });
+  st.deadlinePlan = 2;
+  return true;
 }
 
 function rememberRemoved(name) {
@@ -274,8 +292,9 @@ async function initSync() {
       state = normalize(payload.state);
       const pruned = dropRemovedSchools(state);
       const grew = addNewSeedSchools(state);
+      const redated = applyDeadlines(state);
       render();
-      if (pruned || grew) await pushCloud();
+      if (pruned || grew || redated) await pushCloud();
       setSyncText("Synced");
     } else {
       await pushCloud(); // first use of this key: upload what is already here
