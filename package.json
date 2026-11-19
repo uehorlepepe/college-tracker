@@ -1,0 +1,10 @@
+{
+  "name": "college-tracker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist/public && cp index.html app.js styles.css dist/public/ && npx --yes esbuild worker/index.js --bundle --format=esm --platform=neutral --outfile=dist/worker.js && cp manifest.json dist/manifest.json",
+    "dev": "npm run build && npx wrangler dev --config wrangler.jsonc",
+    "serve": "python3 -m http.server 8123"
+  }
+}

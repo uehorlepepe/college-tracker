@@ -52,9 +52,10 @@ function buildSeed() {
     s("UC Boulder", "US-EA", "2026-11-15", ["Why CU Boulder + major (650w)"]),
     s("Purdue University", "US-EA", "2026-11-01", ["Why Major (250w)", "Why Purdue (250w)", "Community / leadership (250w)"]),
     s("Northeastern", "US-EA", "2026-11-01", ["Why Northeastern + co-op (200w)"]),
-    // UC (2)
-    s("UC Berkeley", "CA-US", "2026-11-27", ["PIQ 1 — Leadership (350w)", "PIQ 2 — Creativity (350w)", "PIQ 3 — Talent / challenge (350w)", "PIQ 4 — Community (350w) *shared UC*"]),
-    s("UCLA", "CA-US", "2026-11-27", ["PIQ 1 — Leadership (350w)", "PIQ 2 — Creativity (350w)", "PIQ 3 — Talent / challenge (350w)", "PIQ 4 — Community (350w) *shared UC*"]),
+    // UC (8) — same 4 PIQs submitted once for every campus
+    ...["UC Berkeley", "UCLA", "UC San Diego", "UC Santa Barbara", "UC Irvine", "UC Davis", "UC Santa Cruz", "UC Riverside"].map(name =>
+      s(name, "CA-US", "2026-11-27", ["PIQ 1 — Leadership (350w)", "PIQ 2 — Creativity (350w)", "PIQ 3 — Talent / challenge (350w)", "PIQ 4 — Community (350w) *shared UC*"])
+    ),
     // Canada (11)
     s("UofT", "Canada", "2027-01-15", ["OUAC application + supplemental (if req'd)"]),
     s("McMaster", "Canada", "2027-01-15", ["Supp app / Kira + essays (if req'd)"]),
@@ -127,6 +128,12 @@ if (!state || !state.schools) {
       if (f) { state.schools.push(f); added = true; }
     }
   });
+  // UC campuses added to the seed after this list was saved.
+  ["UC San Diego", "UC Santa Barbara", "UC Irvine", "UC Davis", "UC Santa Cruz", "UC Riverside"].forEach(n => {
+    if (state.schools.some(x => x.name.toLowerCase() === n.toLowerCase())) return;
+    const f = fresh.find(x => x.name === n);
+    if (f) { state.schools.push(f); added = true; }
+  });
   if (added) save();
   // Fix saved Cornell entry: Engineering requires 2 long + 4 short essays.
   // Adds anything missing without touching existing ticks; drops the old
@@ -165,7 +172,91 @@ if (!state || !state.schools) {
   if (otu) { otu.name = "OTU"; save(); }
 }
 
-function save() { localStorage.setItem(LS, JSON.stringify(state)); }
+function save() {
+  localStorage.setItem(LS, JSON.stringify(state));
+  queueCloudSave();
+}
+
+// --- Sync -------------------------------------------------------------------
+// No accounts. This browser owns a random key and the address bar carries it
+// (#k=...), so opening that exact link on another computer shows the same list.
+// Without the link (plain static file, offline) everything still works locally.
+// var, not let: save() runs during the load-time migrations further up.
+var syncKey = "";
+var syncTimer = null;
+var syncLive = false;
+
+function setSyncText(t) { const el = $("syncText"); if (el) el.textContent = t; }
+
+function makeKey() {
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  return Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
+}
+
+function loadKey() {
+  const m = location.hash.match(/k=([A-Za-z0-9_-]{22,64})/);
+  let k = m ? m[1] : "";
+  if (!k) { try { k = localStorage.getItem(LS + "Key") || ""; } catch (e) { k = ""; } }
+  if (!k) k = makeKey();
+  try { localStorage.setItem(LS + "Key", k); } catch (e) { /* private mode */ }
+  return k;
+}
+
+function syncLink() { return location.origin + location.pathname + "#k=" + syncKey; }
+
+function queueCloudSave() {
+  if (!syncLive) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushCloud, 700);
+}
+
+async function pushCloud() {
+  clearTimeout(syncTimer);
+  if (!syncLive) return;
+  try {
+    const r = await fetch("/api/state?k=" + encodeURIComponent(syncKey), {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(state)
+    });
+    if (r.ok) setSyncText("Saved · open your sync link on the other computer");
+  } catch (e) { /* offline: the local copy is still saved */ }
+}
+
+async function initSync() {
+  syncKey = loadKey();
+  try {
+    const r = await fetch("/api/state?k=" + encodeURIComponent(syncKey), { headers: { accept: "application/json" } });
+    if (!r.ok) throw new Error("no sync api");
+    const payload = await r.json();
+    syncLive = true;
+    if (payload && payload.state && Array.isArray(payload.state.schools)) {
+      state = normalize(payload.state);
+      render();
+      setSyncText("Synced");
+    } else {
+      await pushCloud(); // first use of this key: upload what is already here
+    }
+  } catch (e) {
+    setSyncText(""); // local-only: no clue is better than a scary one
+  }
+}
+
+// Coming back to the tab picks up edits made on the other computer.
+async function refreshFromCloud() {
+  if (!syncLive || syncTimer) return;
+  try {
+    const r = await fetch("/api/state?k=" + encodeURIComponent(syncKey), { headers: { accept: "application/json" } });
+    if (!r.ok) return;
+    const p = await r.json();
+    if (!p || !p.state || !Array.isArray(p.state.schools)) return;
+    if (JSON.stringify(p.state) === JSON.stringify(state)) return;
+    state = normalize(p.state);
+    render();
+    setSyncText("Synced");
+  } catch (e) { /* ignore */ }
+}
 function daysLeft(d) { const x = new Date(d + "T12:00:00"); x.setHours(0, 0, 0, 0); return Math.round((x - today) / 86400000); }
 function fmt(d) { return new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); }
 function leftText(left, submitted) {
@@ -293,10 +384,10 @@ function schoolEl(x) {
   const majorSlot = document.createElement("span");
   majorSlot.className = "school-major-slot";
   head.appendChild(majorSlot);
-  head.appendChild(meta);
   const tagsSlot = document.createElement("span");
   tagsSlot.className = "school-tags";
   head.appendChild(tagsSlot);
+  head.appendChild(meta);
   // Keeps the collapsed row in step with edits made in the panel, without a
   // full re-render (which would steal focus mid-typing).
   const syncHead = () => {
@@ -309,12 +400,12 @@ function schoolEl(x) {
       majorSlot.appendChild(mj);
     }
     tagsSlot.textContent = "";
-    [["coop", "Co-op", "No co-op"], ["honours", "Honours", "No honours"]].forEach(([key, yes, no]) => {
-      if (!x[key]) return;
-      const on = x[key] === "Yes";
+    // Only a "Yes" gets a badge; "No" (or unset) shows nothing at all.
+    [["coop", "Co-op"], ["honours", "Honours"]].forEach(([key, label]) => {
+      if (x[key] !== "Yes") return;
       const tag = document.createElement("span");
-      tag.className = "school-tag " + (on ? "on" : "off");
-      tag.textContent = on ? yes : no;
+      tag.className = "school-tag on";
+      tag.textContent = label;
       tagsSlot.appendChild(tag);
     });
   };
@@ -585,7 +676,7 @@ $("csvBtn").onclick = () => {
   a.click();
 };
 $("resetBtn").onclick = () => {
-  if (confirm("Reset to the original 34-school list? Your ticks will be lost.")) {
+  if (confirm("Reset to the original school list? Your ticks will be lost.")) {
     localStorage.removeItem(LS);
     state = normalize({ schools: buildSeed(), open: [] });
     render();
@@ -605,4 +696,15 @@ $("dlgSave").onclick = () => {
   $("dlg").close();
   render();
 };
+
+$("syncBtn").onclick = async () => {
+  const url = syncLink();
+  let copied = false;
+  try { await navigator.clipboard.writeText(url); copied = true; } catch (e) { copied = false; }
+  if (copied) setSyncText("Link copied — open it on your other computer");
+  else prompt("Open this link on your other computer:", url);
+};
+window.addEventListener("focus", refreshFromCloud);
+
+initSync();
 render();

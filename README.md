@@ -1,40 +1,54 @@
 # College Essay Tracker — Class of 2031
 
-Static website (no build step). 34 schools, deadlines, essay checklists, overall progress bars. Autosaves to `localStorage`.
+40 schools (incl. all 8 UC campuses), deadlines, essay checklists, major / co-op /
+honours per school, overall progress bars.
+
+## Data and sync
+
+- **This browser** — `localStorage`, always on, works offline.
+- **Private link** — the **Sync** button copies an address ending in `#k=<random>`.
+  Open that link on another computer and it shows the same list. Saving on either
+  one updates the copy behind that link; returning to the tab picks up changes
+  made elsewhere. No account, no sign-in; the key in the link is the only thing
+  that grants access, so don't post it publicly.
 
 ## Run locally
 
 ```bash
 cd college-tracker
-python3 -m http.server 8000
-# open http://localhost:8000
+npm install          # first time
+npm run dev          # build + wrangler dev on http://localhost:8787
 ```
 
-## Deploy to Vercel (free)
+`npm run dev` runs the real Worker (API + static files) against a local D1
+database, so the Sync link works there too.
 
-**Option A — Vercel dashboard (easiest, no CLI):**
-1. Go to https://vercel.com/new
-2. Drag & drop this `college-tracker` folder (or push it to GitHub and Import it)
-3. Framework preset: **Other**. Build command: empty. Output: `.`
-4. Deploy. You get `https://your-tracker.vercel.app`
+Static-only preview (localStorage only, no sync):
 
-**Option B — Vercel CLI:**
 ```bash
-cd college-tracker
-npx vercel        # preview
-npx vercel --prod # production
+python3 -m http.server 8123
 ```
 
-## Move your progress to the live site
+## Deploy
 
-`localStorage` is per-domain, so ticks on the local file won't auto-appear online:
-1. Open your old `essay-tracker.html` → **⬇ Export JSON**
-2. Open the Vercel site → **⬆ Import** → pick the file
-3. Columbia + JHU auto-add on first load even for old backups.
+Hosted on Freebuff Sites:
+
+```bash
+npm run build                 # writes dist/ (worker.js + public/)
+# deploy dist/manifest.json to the site's preview/production environment
+```
+
+The `DB` binding is supplied at deploy time. `vercel.json` still serves the
+static files, but a Vercel deploy has no `/api`, so it behaves like the
+static-only mode above.
 
 ## Files
 
-- `index.html` — layout
+- `index.html` — layout and toolbar
 - `styles.css` — theme
-- `app.js` — data (35 schools incl. Columbia Jan 1 + JHU Jan 2 with real 2026-27 prompts) + logic
-- `vercel.json` — static config
+- `app.js` — seed data, logic, `localStorage` and private-link sync
+- `worker/index.js` — routes `/api/state`, otherwise serves the static files
+- `worker/state.js` — D1 read/write for one sync key
+- `worker/test-entry.js` + `wrangler.test.jsonc` — local harness for the storage
+  layer (not deployed)
+- `manifest.json` — Freebuff Sites deploy manifest (built into `dist/`)

@@ -1,0 +1,20 @@
+// Local development config (wrangler dev). Deployment goes through Freebuff
+// Sites, which supplies the DB binding.
+{
+  "name": "college-tracker-dev",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist/public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "dev": { "port": 8787 },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "college-tracker-local",
+      "database_id": "3f2a9c1e-7b64-4d18-9a2e-5c0d1b8f4e27"
+    }
+  ]
+}

@@ -13,6 +13,7 @@
     <div>
       <h1>Essay Tracker</h1>
       <div class="sub" id="todayLine">loading</div>
+      <div class="sync" id="syncLine"><span id="syncText"></span></div>
     </div>
     <div class="actions">
       <button class="btn" id="addSchoolBtn">Add school</button>
@@ -21,6 +22,7 @@
       <button class="btn" id="importBtn">Import</button>
       <input type="file" id="fileIn" accept="application/json" hidden />
       <button class="btn" id="csvBtn">CSV</button>
+      <button class="btn" id="syncBtn" title="Copy a link that shows this exact list on another computer">Sync</button>
       <button class="btn" id="resetBtn">Reset</button>
     </div>
   </header>
@@ -61,7 +63,7 @@
 
   <div id="schools"></div>
 
-  <footer>Autosaves in this browser. Export weekly as backup. Double-click an essay to rename it.</footer>
+  <footer>Autosaves in this browser. Sync copies a private link that shows this same list on another computer. Export weekly as backup. Double-click an essay to rename it.</footer>
 </div>
 
 <dialog id="dlg">
