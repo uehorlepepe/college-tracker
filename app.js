@@ -200,7 +200,7 @@ function applyDeadlines(st) {
   const nov30 = ["UofT", "Waterloo", "McMaster"];
   if (st.deadlinePlan === 3) return false;
   st.schools.forEach(x => {
-    if (x.cat === "CA-US" || exempt.includes(x.name)) return;
+    if (x.cat === "CA-US" || exempt.includes(x.name) || x.deadlineSet) return;
     x.deadline = nov30.includes(x.name) ? "2026-11-30" : override;
   });
   st.deadlinePlan = 3;
@@ -556,6 +556,28 @@ function schoolEl(x) {
   });
   body.appendChild(detailRow);
 
+  // Editable deadline, saved and synced like the other fields (render → save →
+  // cloud push). deadlineSet keeps the one-time date migration off a date you
+  // picked by hand.
+  const dueRow = document.createElement("div");
+  dueRow.className = "offerrow";
+  const dueLbl = document.createElement("span");
+  dueLbl.textContent = "Deadline";
+  const due = document.createElement("input");
+  due.type = "date";
+  due.value = x.deadline || "";
+  due.title = "Due date for " + x.name;
+  due.setAttribute("aria-label", "Deadline for " + x.name);
+  due.onchange = () => {
+    if (!due.value) { due.value = x.deadline || ""; return; } // never leave it blank
+    x.deadline = due.value;
+    x.deadlineSet = true;
+    render();
+  };
+  dueRow.appendChild(dueLbl);
+  dueRow.appendChild(due);
+  body.appendChild(dueRow);
+
   const offerRow = document.createElement("div");
   offerRow.className = "offerrow";
   const offerLbl = document.createElement("span");
@@ -577,11 +599,6 @@ function schoolEl(x) {
 
   const foot = document.createElement("div");
   foot.className = "school-foot";
-  const dl = document.createElement("input");
-  dl.type = "date";
-  dl.value = x.deadline;
-  dl.title = "Deadline";
-  dl.onchange = () => { x.deadline = dl.value || x.deadline; render(); };
   const st = document.createElement("select");
   st.title = "Status";
   STATUSES.forEach(o => {
@@ -609,7 +626,6 @@ function schoolEl(x) {
     rememberRemoved(x.name);
     render();
   };
-  foot.appendChild(dl);
   foot.appendChild(st);
   foot.appendChild(sub);
   foot.appendChild(delS);
