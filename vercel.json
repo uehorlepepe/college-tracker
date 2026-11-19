@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "buildCommand": "mkdir -p public && cp index.html app.js styles.css public/",
+  "outputDirectory": "public"
 }

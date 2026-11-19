@@ -18,6 +18,13 @@ function buildSeed() {
   return [
     // US RD (12) — now incl. Columbia + JHU
     s("UPenn", "US-RD", "2027-01-05", ["Why Penn — community & program fit (400w)", "Thank-You Note / Community (150w)", "Major & intellectual curiosity (200w)"]),
+    s("Princeton", "US-RD", "2027-01-01", [
+      "Your voice — a moment or person that shaped you (500w)",
+      "Lived experience + Princeton community (250w)",
+      "Service and civic engagement (250w)",
+      "Academic interests + why Princeton (250w)",
+      "Short answers — book, website, phrase (50c each)"
+    ]),
     s("MIT", "US-RD", "2027-01-01", ["Why Major + community (225w)", "Challenge / failure (225w)", "World you come from (225w)", "Something you make/build (225w)", "Short takes (100c)"]),
     s("Stanford University", "US-RD", "2027-01-05", ["What matters + why (250w)", "Intellectual vitality (250w)", "Roommate note (250c)", "Meaningful experience / idea (50w x5)"]),
     s("Rice University", "US-RD", "2027-01-04", ["Why Rice + residential colleges (500w)", "Major / perspective (500w)"]),
@@ -26,7 +33,6 @@ function buildSeed() {
     s("Carnegie Mellon", "US-RD", "2027-01-04", ["Why CMU + college fit (300w)", "Collaboration / creativity (300w)", "Consideration / background (300w)"]),
     s("Boston University", "US-RD", "2027-01-06", ["Why BU (250w)"]),
     s("UT Austin", "US-RD", "2026-12-01", ["Tell us your story (650w)", "Why Major (250w)", "Leadership / impact short (250w)"]),
-    s("Caltech", "US-RD", "2027-01-02", ["Why STEM + Caltech (400w)", "Creativity / curiosity (250w)", "Collaboration (250w)", "Challenge short (150w)"]),
     s("Columbia University", "US-RD", "2027-01-01", [
       "List — texts/resources that shaped you (100w)",
       "Lived experience + Columbia community (150w)",
@@ -96,6 +102,12 @@ function normalize(st) {
     if (!Array.isArray(x.essays)) x.essays = [];
   });
   if (!Array.isArray(st.open)) st.open = [];
+  // Names you deleted, so a seed school you remove is not added back on reload.
+  if (!Array.isArray(st.removed)) st.removed = [];
+  st.removed = st.removed
+    .filter(n => typeof n === "string")
+    .map(n => n.trim().toLowerCase())
+    .filter(Boolean);
   if (!st.ps || typeof st.ps !== "object") {
     const old = typeof st.ps === "string" ? st.ps : "Not started";
     st.ps = { title: "Personal Statement (650w)", done: old === "Final ✓" || old === "Final" };
@@ -111,15 +123,10 @@ if (!state || !state.schools) {
   state = normalize({ schools: buildSeed(), open: [] });
 } else {
   state = normalize(state);
-  // User removed TU Delft: drop it from saved lists too.
-  const kept = state.schools.filter(x => !x.name.toLowerCase().includes("delft"));
-  if (kept.length !== state.schools.length) {
-    state.schools = kept;
-    state.open = state.open.filter(id => kept.some(x => x.id === id));
-    save();
-  }
+  // User removed TU Delft and Caltech: drop them from saved lists too.
+  if (dropRemovedSchools(state)) save();
   const names = new Set(state.schools.map(x => x.name.toLowerCase()));
-  let added = false;
+  let added = addNewSeedSchools(state);
   const fresh = buildSeed();
   ["columbia university", "johns hopkins university"].forEach(w => {
     const has = [...names].some(n => n.includes(w.split(" ")[0]));
@@ -127,12 +134,6 @@ if (!state || !state.schools) {
       const f = fresh.find(x => x.name.toLowerCase().includes(w.split(" ")[0]));
       if (f) { state.schools.push(f); added = true; }
     }
-  });
-  // UC campuses added to the seed after this list was saved.
-  ["UC San Diego", "UC Santa Barbara", "UC Irvine", "UC Davis", "UC Santa Cruz", "UC Riverside"].forEach(n => {
-    if (state.schools.some(x => x.name.toLowerCase() === n.toLowerCase())) return;
-    const f = fresh.find(x => x.name === n);
-    if (f) { state.schools.push(f); added = true; }
   });
   if (added) save();
   // Fix saved Cornell entry: Engineering requires 2 long + 4 short essays.
@@ -170,6 +171,44 @@ if (!state || !state.schools) {
   // Drop the old "(Ontario Tech)" suffix from saved lists.
   const otu = state.schools.find(x => x.name === "OTU (Ontario Tech)");
   if (otu) { otu.name = "OTU"; save(); }
+}
+
+// Schools added to the seed after the first version shipped. Applied to saved
+// and synced copies alike, so an existing list picks them up once.
+function addNewSeedSchools(st) {
+  const later = ["UC San Diego", "UC Santa Barbara", "UC Irvine", "UC Davis", "UC Santa Cruz", "UC Riverside", "Princeton"];
+  const fresh = buildSeed();
+  let added = false;
+  later.forEach(n => {
+    if (st.removed.includes(n.toLowerCase())) return;
+    if (st.schools.some(x => x.name.toLowerCase() === n.toLowerCase())) return;
+    const f = fresh.find(x => x.name === n);
+    if (f) { st.schools.push(f); added = true; }
+  });
+  return added;
+}
+
+function rememberRemoved(name) {
+  const n = String(name || "").trim().toLowerCase();
+  if (!n || state.removed.includes(n)) return;
+  state.removed.push(n);
+}
+
+function forgetRemoved(name) {
+  const n = String(name || "").trim().toLowerCase();
+  state.removed = (state.removed || []).filter(x => x !== n);
+}
+
+// Schools the user asked to delete; applied to saved and synced copies alike.
+function dropRemovedSchools(st) {
+  const kept = st.schools.filter(x => {
+    const n = x.name.toLowerCase();
+    return !n.includes("delft") && !n.includes("caltech");
+  });
+  if (kept.length === st.schools.length) return false;
+  st.schools = kept;
+  st.open = (st.open || []).filter(id => kept.some(x => x.id === id));
+  return true;
 }
 
 function save() {
@@ -233,7 +272,10 @@ async function initSync() {
     syncLive = true;
     if (payload && payload.state && Array.isArray(payload.state.schools)) {
       state = normalize(payload.state);
+      const pruned = dropRemovedSchools(state);
+      const grew = addNewSeedSchools(state);
       render();
+      if (pruned || grew) await pushCloud();
       setSyncText("Synced");
     } else {
       await pushCloud(); // first use of this key: upload what is already here
@@ -541,7 +583,12 @@ function schoolEl(x) {
   const delS = document.createElement("button");
   delS.className = "link";
   delS.textContent = "Delete";
-  delS.onclick = () => { if (confirm("Delete " + x.name + "?")) { state.schools = state.schools.filter(y => y.id !== x.id); render(); } };
+  delS.onclick = () => {
+    if (!confirm("Delete " + x.name + "?")) return;
+    state.schools = state.schools.filter(y => y.id !== x.id);
+    rememberRemoved(x.name);
+    render();
+  };
   foot.appendChild(dl);
   foot.appendChild(st);
   foot.appendChild(sub);
@@ -690,6 +737,7 @@ $("dlgSave").onclick = () => {
   const es = $("nEssays").value.split(",").map(st => st.trim()).filter(Boolean);
   const added = { id: uid(), name: n, cat: $("nCat").value, deadline: $("nDate").value || "2027-01-01", status: "Not started", offerDate: "", major: "", coop: "", honours: "", essays: es.map(t => ({ id: uid(), title: t, done: false })) };
   state.schools.push(added);
+  forgetRemoved(added.name);
   state.open = [...state.open, added.id];
   $("nName").value = "";
   $("nEssays").value = "";
